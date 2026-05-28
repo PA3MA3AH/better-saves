@@ -1,74 +1,74 @@
-# BetterSaves — мод на улучшенные сохранения
+# BetterSaves — improved save system mod
 
-**Мод для игры [The Coffin of Andy and Leyley](https://store.steampowered.com/app/2378900)**
+**Mod for [The Coffin of Andy and Leyley](https://store.steampowered.com/app/2378900)**
 
 ![screenshot](screenshots/preview.png)
 
-## Что добавляет
+## What it adds
 
-- **Метка эпизода** на каждом слоте — Эпизод 1, 2, 3 (ч.1), 4
-- **Заметки** — добавляй текст к каждому сохранению ("выбор в машине", "тру энд" и т.д.)
-- **Редактирование заметки** без перезаписи сохранения
-- **Копирование слотов** — дублируй сохранение в любой слот
-- **Удаление** сохранений прямо из меню
-- **Язык** переключается в настройках игры (RU / EN)
-- Старые сохранения **не ломаются** — эпизод определяется автоматически при первом запуске
+- **Episode label** on each slot — Episode 1, 2, 3 (pt.1), 4
+- **Notes** — add custom text to each save ("car choice", "true end", etc.)
+- **Edit note** without overwriting the save file
+- **Copy slots** — duplicate any save to another slot
+- **Delete** saves directly from the menu
+- **Language** toggle in game Options (RU / EN)
+- Old saves are **not broken** — episode is detected automatically on first launch
 
 ---
 
-## Установка
+## Installation
 
 ### Windows
 
-1. [Скачай последний релиз](../../releases/latest) и распакуй в любую папку
-2. Запусти `install.bat`
-3. Запускай игру через Steam как обычно ✓
+1. [Download the latest release](../../releases/latest) and unzip anywhere
+2. Run `install.bat`
+3. Launch the game via Steam as usual ✓
 
 ### Linux
 
-1. [Скачай последний релиз](../../releases/latest) и распакуй
-2. Открой терминал в папке с архивом
-3. Выполни:
+1. [Download the latest release](../../releases/latest) and unzip
+2. Open a terminal in the folder
+3. Run:
    ```bash
    chmod +x install.sh && ./install.sh
    ```
-4. Запускай игру через Steam как обычно ✓
+4. Launch the game via Steam as usual ✓
 
 ---
 
-## Удаление
+## Uninstall
 
-Запусти `uninstall.bat` (Windows) или `uninstall.sh` (Linux).  
-Все твои сохранения останутся нетронутыми.
-
----
-
-## Смена языка
-
-`Настройки` → пункт **"Язык мода сейвов"** → нажми Enter или ←/→
+Run `uninstall.bat` (Windows) or `uninstall.sh` (Linux).  
+Your save files will not be affected.
 
 ---
 
-## Совместимость
+## Change language
+
+`Options` → **"Save mod language"** → press Enter or ←/→
+
+---
+
+## Compatibility
 
 | | |
 |---|---|
 | Windows | ✅ |
 | Linux | ✅ |
-| macOS | ✅ (через install.sh) |
-| Версия игры | 3.0.x и выше |
-| Существующие сохранения | ✅ не ломаются |
+| macOS | ✅ (via install.sh) |
+| Game version | 3.0.x and above |
+| Existing saves | ✅ not broken |
 
 ---
 
-## Нашёл баг?
+## Found a bug?
 
-В меню загрузки нажми на сохранение → **"Репорт ошибки"** — данные скопируются в буфер.  
-Открой [Issue](../../issues/new) и вставь скопированный текст с описанием проблемы.
+In the load menu, select a save → **"Report bug"** — the info will be copied to clipboard.  
+Open an [Issue](../../issues/new) and paste it with a description.
 
 ---
 
-## Авторы
+## Credits
 
-- **YanMod** — разработка
-- Создано с помощью Claude (Anthropic)
+- **PA3MA3AH** — development
+- Built with Claude (Anthropic)
