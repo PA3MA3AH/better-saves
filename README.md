@@ -71,4 +71,3 @@ Open an [Issue](../../issues/new) and paste it with a description.
 ## Credits
 
 - **PA3MA3AH** — development
-- Built with Claude (Anthropic)
