@@ -1,6 +1,6 @@
 /*:
  * @plugindesc v1.1 Better Save System for The Coffin of Andy and Leyley
- * @author YanMod
+ * @author PA3MA3AH
  *
  * @param language
  * @text Language / Язык
@@ -22,7 +22,7 @@
  * - Episode label (auto-detected from save data)
  * - Notes per slot (add/edit without overwriting)
  * - Copy / Delete saves
- * - Language: RU / EN (change in Options menu)
+ * - Language: RU / EN (change in Plugin Manager)
  * - Bug report button
  */
 
@@ -79,7 +79,7 @@ function t(key) {
     return (LANG === 'EN' ? T.EN[key] : T.RU[key]) || key;
 }
 
-// ─── EPISODE DETECTION ───────────────────────────────────────────────
+// ─── EPISODE DETECTION FROM mapId ────────────────────────────────────
 function detectEpisode(mapId) {
     mapId = parseInt(mapId) || 0;
     if (mapId >= 3   && mapId <= 18)  return t('ep1');
@@ -94,7 +94,14 @@ function detectEpisode(mapId) {
 // ─── 50 СЛОТОВ ───────────────────────────────────────────────────────
 DataManager.maxSavefiles = function() { return 50; };
 
-// ─── AUTO-FIX EPISODES ON STARTUP ────────────────────────────────────
+// ─── AUTO-FIX: при старте читаем mapId из каждого сейва ──────────────
+// Исправляем ??? в старых сохранениях без перезаписи самих файлов
+var _DataManager_loadDatabase = DataManager.loadDatabase;
+DataManager.loadDatabase = function() {
+    _DataManager_loadDatabase.call(this);
+    BetterSaves.fixGlobalInfo();
+};
+
 var BetterSaves = {};
 
 BetterSaves.fixGlobalInfo = function() {
@@ -104,6 +111,7 @@ BetterSaves.fixGlobalInfo = function() {
         var changed = false;
         for (var i = 1; i <= DataManager.maxSavefiles(); i++) {
             if (!globalInfo[i]) continue;
+            // Если глава не заполнена или mapId отсутствует — читаем из файла
             if (!globalInfo[i].mapId || !globalInfo[i].chapter || globalInfo[i].chapter === '???') {
                 try {
                     var json = StorageManager.load(i);
@@ -118,6 +126,7 @@ BetterSaves.fixGlobalInfo = function() {
                     }
                 } catch(e) {}
             }
+            // Обновляем текст эпизода если язык сменился
             if (globalInfo[i].mapId) {
                 var expected = detectEpisode(globalInfo[i].mapId);
                 if (globalInfo[i].chapter !== expected) {
@@ -132,13 +141,7 @@ BetterSaves.fixGlobalInfo = function() {
     }
 };
 
-var _DataManager_loadDatabase = DataManager.loadDatabase;
-DataManager.loadDatabase = function() {
-    _DataManager_loadDatabase.call(this);
-    BetterSaves.fixGlobalInfo();
-};
-
-// ─── SAVE: EPISODE + mapId + NOTE ────────────────────────────────────
+// ─── СОХРАНЯЕМ ЭПИЗОД, mapId И ЗАМЕТКУ ───────────────────────────────
 var _makeSavefileInfo = DataManager.makeSavefileInfo;
 DataManager.makeSavefileInfo = function() {
     var info = _makeSavefileInfo.call(this);
@@ -152,7 +155,7 @@ DataManager.makeSavefileInfo = function() {
     return info;
 };
 
-// ─── NOTE PROMPT ON SAVE ─────────────────────────────────────────────
+// ─── ПРОМПТ ЗАМЕТКИ ПРИ СОХРАНЕНИИ ───────────────────────────────────
 var _Scene_Save_onSavefileOk = Scene_Save.prototype.onSavefileOk;
 Scene_Save.prototype.onSavefileOk = function() {
     var index = this.savefileId();
@@ -165,10 +168,10 @@ Scene_Save.prototype.onSavefileOk = function() {
     _Scene_Save_onSavefileOk.call(this);
 };
 
-// ─── SLOT DISPLAY ────────────────────────────────────────────────────
+// ─── ОТОБРАЖЕНИЕ СЛОТОВ ───────────────────────────────────────────────
 Window_SavefileList.prototype.drawGameTitle = function(info, x, y, width) {
     var episode = info.chapter || t('unknown');
-    var note    = info.note    ? "  \u2014  " + info.note : "";
+    var note    = info.note    ? "  —  " + info.note : "";
     var mapId   = (SHOW_MAPID && info.mapId) ? " [" + info.mapId + "]" : "";
     this.changeTextColor(this.normalColor());
     this.drawText("[" + episode + "]" + note, x, y, width - 70);
@@ -177,7 +180,7 @@ Window_SavefileList.prototype.drawGameTitle = function(info, x, y, width) {
     this.changeTextColor(this.normalColor());
 };
 
-// ─── LOAD MENU POPUP ─────────────────────────────────────────────────
+// ─── ПОПАП МЕНЮ ПРИ ЗАГРУЗКЕ ─────────────────────────────────────────
 var _Scene_Load_create = Scene_Load.prototype.create;
 Scene_Load.prototype.create = function() {
     _Scene_Load_create.call(this);
@@ -222,6 +225,7 @@ Scene_Load.prototype.onActionEdit = function() {
     var existingNote = (info && info.note) ? info.note : "";
     var note = window.prompt(t('notePrompt'), existingNote);
     if (note !== null) {
+        // Обновляем только заметку в globalInfo — файл сейва не трогаем
         var globalInfo = DataManager.loadGlobalInfo() || [];
         if (globalInfo[id]) {
             globalInfo[id].note = note.substring(0, 40);
@@ -290,7 +294,7 @@ Scene_Load.prototype.onActionCancel = function() {
     this._listWindow.activate();
 };
 
-// ─── POPUP WINDOW ────────────────────────────────────────────────────
+// ─── ПОПАП ОКНО (6 пунктов) ──────────────────────────────────────────
 function Window_SaveAction() { this.initialize.apply(this, arguments); }
 Window_SaveAction.prototype = Object.create(Window_Command.prototype);
 Window_SaveAction.prototype.constructor = Window_SaveAction;
@@ -309,7 +313,7 @@ Window_SaveAction.prototype.makeCommandList = function() {
     this.addCommand(t('cmdCancel'), "cancel");
 };
 
-// ─── LANGUAGE OPTION IN GAME OPTIONS MENU ────────────────────────────
+// ─── НАСТРОЙКИ В ИГРЕ: добавляем переключатель языка в Options ────────
 var _Window_Options_addGeneralOptions = Window_Options.prototype.addGeneralOptions;
 Window_Options.prototype.addGeneralOptions = function() {
     _Window_Options_addGeneralOptions.call(this);
@@ -318,39 +322,50 @@ Window_Options.prototype.addGeneralOptions = function() {
 
 var _Window_Options_statusText = Window_Options.prototype.statusText;
 Window_Options.prototype.statusText = function(index) {
-    if (this.commandSymbol(index) === 'betterSavesLang') return LANG;
+    var symbol = this.commandSymbol(index);
+    if (symbol === 'betterSavesLang') {
+        return LANG;
+    }
     return _Window_Options_statusText.call(this, index);
 };
 
 var _Window_Options_processOk = Window_Options.prototype.processOk;
 Window_Options.prototype.processOk = function() {
-    if (this.commandSymbol(this.index()) === 'betterSavesLang') {
-        this.toggleLang(); return;
+    var index = this.index();
+    var symbol = this.commandSymbol(index);
+    if (symbol === 'betterSavesLang') {
+        this.toggleLang();
+        return;
     }
     _Window_Options_processOk.call(this);
 };
 
 var _Window_Options_cursorRight = Window_Options.prototype.cursorRight;
 Window_Options.prototype.cursorRight = function(wrap) {
-    if (this.commandSymbol(this.index()) === 'betterSavesLang') { this.toggleLang(); return; }
+    var symbol = this.commandSymbol(this.index());
+    if (symbol === 'betterSavesLang') { this.toggleLang(); return; }
     _Window_Options_cursorRight.call(this, wrap);
 };
 
 var _Window_Options_cursorLeft = Window_Options.prototype.cursorLeft;
 Window_Options.prototype.cursorLeft = function(wrap) {
-    if (this.commandSymbol(this.index()) === 'betterSavesLang') { this.toggleLang(); return; }
+    var symbol = this.commandSymbol(this.index());
+    if (symbol === 'betterSavesLang') { this.toggleLang(); return; }
     _Window_Options_cursorLeft.call(this, wrap);
 };
 
 Window_Options.prototype.toggleLang = function() {
     LANG = (LANG === 'RU') ? 'EN' : 'RU';
+    // Сохраняем в ConfigManager
     ConfigManager['betterSavesLang'] = LANG;
     ConfigManager.save();
+    // Обновляем эпизоды в globalInfo под новый язык
     BetterSaves.fixGlobalInfo();
     this.redrawItem(this.index());
     SoundManager.playCursor();
 };
 
+// Сохраняем язык в config
 var _ConfigManager_makeData = ConfigManager.makeData;
 ConfigManager.makeData = function() {
     var config = _ConfigManager_makeData.call(this);
@@ -361,7 +376,9 @@ ConfigManager.makeData = function() {
 var _ConfigManager_applyData = ConfigManager.applyData;
 ConfigManager.applyData = function(config) {
     _ConfigManager_applyData.call(this, config);
-    if (config.betterSavesLang) LANG = config.betterSavesLang;
+    if (config.betterSavesLang) {
+        LANG = config.betterSavesLang;
+    }
 };
 
 })();
