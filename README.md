@@ -61,6 +61,14 @@ Your save files will not be affected.
 
 ---
 
+## If automatic install doesn't work:
+
+1. Download BetterSaves.js file
+2. Place BetterSaves.js to /The Coffin of Andy and Leyley/www/js/plugins
+3. Start game at Steam
+
+---
+
 ## Found a bug?
 
 In the load menu, select a save → **"Report bug"** — the info will be copied to clipboard.  
