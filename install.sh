@@ -74,24 +74,29 @@ if [ $? -ne 0 ]; then
 fi
 echo "[OK] BetterSaves.js installed"
 
-# --- Register in plugins.js ---
-if grep -q "BetterSaves" "$GAME_PATH/www/js/plugins.js"; then
+# --- Register in plugins.js (safe method) ---
+PLUGINS_JS="$GAME_PATH/www/js/plugins.js"
+
+if grep -q '"BetterSaves"' "$PLUGINS_JS"; then
     echo "[OK] Plugin already registered in plugins.js"
 else
-    python3 -c "
-path = '$GAME_PATH/www/js/plugins.js'
-with open(path, 'r', encoding='utf-8') as f:
-    c = f.read()
-entry = ',{\"name\":\"BetterSaves\",\"status\":true,\"description\":\"Better saves v1.1\",\"parameters\":{\"language\":\"RU\",\"showMapId\":\"true\"}}'
-c = c.rstrip().rstrip(';').rstrip(']') + entry + '\n];\n'
-with open(path, 'w', encoding='utf-8') as f:
-    f.write(c)
-print('[OK] Plugin registered')
-"
-    if [ $? -ne 0 ]; then
-        echo "[ERROR] Failed to register plugin"
-        exit 1
+    TMP_FILE=$(mktemp)
+    
+    # Удаляем завершающую "];" с пробелами/переводами строк
+    sed -E ':a; /];[[:space:]]*$/!{N;ba}; s/];[[:space:]]*$//g' "$PLUGINS_JS" > "$TMP_FILE"
+    
+    # Добавляем запятую, если нужно
+    LAST_CHAR=$(tail -c 2 "$TMP_FILE" | tr -d '\n')
+    if [ "$LAST_CHAR" != "," ] && [ "$LAST_CHAR" != "[" ]; then
+        echo "," >> "$TMP_FILE"
     fi
+    
+    # Вставляем новый плагин
+    echo '  {"name":"BetterSaves","status":true,"description":"Better saves v1.1","parameters":{"language":"RU","showMapId":"true"}}' >> "$TMP_FILE"
+    echo "];" >> "$TMP_FILE"
+    
+    mv "$TMP_FILE" "$PLUGINS_JS"
+    echo "[OK] Plugin registered"
 fi
 
 echo ""
