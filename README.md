@@ -12,14 +12,20 @@
 ---
 ## Installation
 ### Windows
-1. [Download the latest release](../../releases/latest) and unzip anywhere
+1. Download the files:
+   - [BetterSaves.js](https://github.com/PA3MA3AH/better-saves/raw/main/BetterSaves.js)
+   - [install.bat](https://github.com/PA3MA3AH/better-saves/raw/main/install.bat)
+   - [uninstall.bat](https://github.com/PA3MA3AH/better-saves/raw/main/uninstall.bat)
 2. Right-click `install.bat` → **Run as administrator**
 3. Launch the game via Steam as usual ✓
 
 > ⚠️ Administrator rights are required because the game is typically installed in `Program Files`.
 
 ### Linux
-1. [Download the latest release](../../releases/latest) and unzip
+1. Download the files:
+   - [BetterSaves.js](https://github.com/PA3MA3AH/better-saves/raw/main/BetterSaves.js)
+   - [install.bat](https://github.com/PA3MA3AH/better-saves/raw/main/install.sh)
+   - [uninstall.bat](https://github.com/PA3MA3AH/better-saves/raw/main/uninstall.sh)
 2. Open a terminal in the folder
 3. Run:
    ```bash
@@ -47,7 +53,7 @@ Your save files will not be affected.
 
 ### Manual installation
 
-1. Download `BetterSaves.js` from the latest release.
+1. [Download BetterSaves.js](https://github.com/PA3MA3AH/better-saves/raw/main/BetterSaves.js)
 
 2. Open the game installation folder:
 
