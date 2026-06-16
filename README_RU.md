@@ -84,7 +84,7 @@
 6. Добавь следующую запись перед последним `];`:
 
    ```js
-   {"name":"BetterSaves","status":true,"description":"Better saves v1.1","parameters":{"language":"RU","showMapId":"true"}},
+   {"name":"BetterSaves","status":true,"description":"Better saves v1.4","parameters":{"language":"RU","showMapId":"true"}},
    ```
 
 7. В итоге файл должен выглядеть примерно так:
@@ -96,7 +96,7 @@
    [
    {"name":"SomePlugin","status":true,"description":"","parameters":{}},
 
-   {"name":"BetterSaves","status":true,"description":"Better saves v1.1","parameters":{"language":"RU","showMapId":"true"}},
+   {"name":"BetterSaves","status":true,"description":"Better saves v1.4","parameters":{"language":"RU","showMapId":"true"}},
    ];
    ```
 
@@ -112,7 +112,7 @@
 {"name":"stbvorbis_stream","status":false,"description":"","parameters":{}},
 {"name":"stbvorbis_stream_asm","status":false,"description":"","parameters":{}},
 
-{"name":"BetterSaves","status":true,"description":"Better saves v1.1","parameters":{"language":"RU","showMapId":"true"}},
+{"name":"BetterSaves","status":true,"description":"Better saves v1.4","parameters":{"language":"RU","showMapId":"true"}},
 
 ];
 ```
