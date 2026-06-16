@@ -8,7 +8,6 @@ echo   The Coffin of Andy and Leyley
 echo ============================================
 echo.
 
-:: --- 1. Поиск пути игры через реестр Steam ---
 set GAME_PATH=
 
 for /f "tokens=2*" %%a in ('reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 2378900" /v "InstallLocation" 2^>nul') do set GAME_PATH=%%b
@@ -17,7 +16,6 @@ if defined GAME_PATH goto :validate
 for /f "tokens=2*" %%a in ('reg query "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 2378900" /v "InstallLocation" 2^>nul') do set GAME_PATH=%%b
 if defined GAME_PATH goto :validate
 
-:: --- 2. Проверка стандартных путей на дисках ---
 for %%d in (C D E F G H) do (
     for %%p in (
         "%%d:\Program Files (x86)\Steam\steamapps\common\The Coffin of Andy and Leyley"
@@ -33,7 +31,6 @@ for %%d in (C D E F G H) do (
     )
 )
 
-:: --- 3. Ручной ввод, если автопоиск не сработал ---
 echo [!] Could not find the game automatically.
 echo.
 echo Please enter the full path to the game folder.
@@ -41,8 +38,6 @@ echo Example: C:\Program Files (x86)\Steam\steamapps\common\The Coffin of Andy a
 echo.
 set /p GAME_PATH="Path: "
 
-:validate
-:: Удаляем кавычки, если пользователь ввёл путь с ними
 set GAME_PATH=%GAME_PATH:"=%
 
 if not exist "%GAME_PATH%\www\js\plugins.js" (
@@ -57,7 +52,6 @@ if not exist "%GAME_PATH%\www\js\plugins.js" (
 echo [OK] Game found: %GAME_PATH%
 echo.
 
-:: --- 4. Резервное копирование plugins.js ---
 echo [*] Backing up plugins.js...
 copy /y "%GAME_PATH%\www\js\plugins.js" "%GAME_PATH%\www\js\plugins.js.bak" >nul
 if errorlevel 1 (
@@ -67,7 +61,6 @@ if errorlevel 1 (
 )
 echo [OK] Backup saved: plugins.js.bak
 
-:: --- 5. Копирование файла плагина ---
 echo [*] Installing BetterSaves.js...
 if not exist "%GAME_PATH%\www\js\plugins\" mkdir "%GAME_PATH%\www\js\plugins\"
 copy /y "%~dp0BetterSaves.js" "%GAME_PATH%\www\js\plugins\BetterSaves.js" >nul
@@ -79,10 +72,8 @@ if errorlevel 1 (
 )
 echo [OK] BetterSaves.js installed
 
-:: --- 6. Регистрация мода в plugins.js через Node.js ---
 echo [*] Registering plugin...
 
-:: Подменяем обратные слеши на прямые для корректной работы путей в JS
 set "JS_FILE_PATH=%GAME_PATH:\=/%/www/js/plugins.js"
 
 node -e "const fs = require('fs'); const filePath = '%JS_FILE_PATH%'; let content = fs.readFileSync(filePath, 'utf8'); if (content.includes('\"BetterSaves\"')) { console.log('[OK] Plugin already registered'); process.exit(0); } const lastIndex = content.lastIndexOf(']'); if (lastIndex === -1) { console.error('[ERROR] Invalid array structure'); process.exit(1); } const newPluginStr = JSON.stringify({ name: 'BetterSaves', status: true, description: 'Better saves v1.4', parameters: { language: 'EN', showMapId: 'true' } }, null, 4); let before = content.substring(0, lastIndex).trim(); if (before.endsWith(',')) before = before.slice(0, -1); const isArrayEmpty = before.endsWith('['); const separator = isArrayEmpty ? '\n' : ',\n'; const output = before + separator + newPluginStr + '\n];\n'; try { fs.writeFileSync(filePath, output, 'utf8'); console.log('[OK] Plugin successfully registered'); } catch (e) { console.error('[ERROR] Failed to write:', e.message); process.exit(1); }"
