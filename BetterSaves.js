@@ -1,5 +1,5 @@
 /*:
- * @plugindesc v1.1 Better Save System for The Coffin of Andy and Leyley
+ * @plugindesc v1.4 Better Save System for The Coffin of Andy and Leyley
  * @author PA3MA3AH
  *
  * @param language
@@ -8,7 +8,7 @@
  * @type select
  * @option RU
  * @option EN
- * @default RU
+ * @default EN
  *
  * @param showMapId
  * @text Show mapId (debug)
@@ -17,25 +17,24 @@
  * @default true
  *
  * @help
- * BetterSaves v1.1
+ * BetterSaves v1.4
  * - 50 save slots
  * - Episode label (auto-detected from save data)
  * - Notes per slot (add/edit without overwriting)
  * - Copy / Delete saves
  * - Language: RU / EN (change in Plugin Manager)
  * - Bug report button
+ * - Fixed note persistence (separate storage)
  */
 
 (function() {
 
 'use strict';
 
-// ─── PARAMETERS ──────────────────────────────────────────────────────
 var params     = PluginManager.parameters('BetterSaves');
 var LANG       = (params['language'] || 'RU').trim().toUpperCase();
 var SHOW_MAPID = (params['showMapId'] !== 'false');
 
-// ─── LOCALIZATION ─────────────────────────────────────────────────────
 var T = {
     RU: {
         ep1:           "Эпизод 1",
@@ -79,7 +78,6 @@ function t(key) {
     return (LANG === 'EN' ? T.EN[key] : T.RU[key]) || key;
 }
 
-// ─── EPISODE DETECTION FROM mapId ────────────────────────────────────
 function detectEpisode(mapId) {
     mapId = parseInt(mapId) || 0;
     if (mapId >= 3   && mapId <= 18)  return t('ep1');
@@ -91,11 +89,38 @@ function detectEpisode(mapId) {
     return t('unknown');
 }
 
-// ─── 50 СЛОТОВ ───────────────────────────────────────────────────────
 DataManager.maxSavefiles = function() { return 50; };
 
-// ─── AUTO-FIX: при старте читаем mapId из каждого сейва ──────────────
-// Исправляем ??? в старых сохранениях без перезаписи самих файлов
+var _DataManager_makeSaveContents = DataManager.makeSaveContents;
+DataManager.makeSaveContents = function() {
+    var contents = _DataManager_makeSaveContents.call(this);
+    if (DataManager._pendingNote) {
+        contents.note = DataManager._pendingNote;
+    } else {
+        var globalInfo = DataManager.loadGlobalInfo();
+        var id = DataManager._lastAccessedSavefileId;
+        if (globalInfo && globalInfo[id] && globalInfo[id].note) {
+            contents.note = globalInfo[id].note;
+        }
+    }
+    DataManager._pendingNote = null;
+    return contents;
+};
+
+var _DataManager_extractSaveContents = DataManager.extractSaveContents;
+DataManager.extractSaveContents = function(contents) {
+    _DataManager_extractSaveContents.call(this, contents);
+    if (contents.note) {
+        var id = DataManager._lastAccessedSavefileId;
+        if (id) {
+            var globalInfo = DataManager.loadGlobalInfo() || [];
+            if (!globalInfo[id]) globalInfo[id] = {};
+            globalInfo[id].note = contents.note;
+            DataManager.saveGlobalInfo(globalInfo);
+        }
+    }
+};
+
 var _DataManager_loadDatabase = DataManager.loadDatabase;
 DataManager.loadDatabase = function() {
     _DataManager_loadDatabase.call(this);
@@ -111,7 +136,6 @@ BetterSaves.fixGlobalInfo = function() {
         var changed = false;
         for (var i = 1; i <= DataManager.maxSavefiles(); i++) {
             if (!globalInfo[i]) continue;
-            // Если глава не заполнена или mapId отсутствует — читаем из файла
             if (!globalInfo[i].mapId || !globalInfo[i].chapter || globalInfo[i].chapter === '???') {
                 try {
                     var json = StorageManager.load(i);
@@ -126,7 +150,6 @@ BetterSaves.fixGlobalInfo = function() {
                     }
                 } catch(e) {}
             }
-            // Обновляем текст эпизода если язык сменился
             if (globalInfo[i].mapId) {
                 var expected = detectEpisode(globalInfo[i].mapId);
                 if (globalInfo[i].chapter !== expected) {
@@ -141,38 +164,45 @@ BetterSaves.fixGlobalInfo = function() {
     }
 };
 
-// ─── СОХРАНЯЕМ ЭПИЗОД, mapId И ЗАМЕТКУ ───────────────────────────────
 var _makeSavefileInfo = DataManager.makeSavefileInfo;
 DataManager.makeSavefileInfo = function() {
     var info = _makeSavefileInfo.call(this);
     var mapId = $gameMap ? $gameMap.mapId() : 0;
     info.mapId   = mapId;
     info.chapter = detectEpisode(mapId);
-    info.note    = (DataManager._pendingNote !== undefined && DataManager._pendingNote !== null)
-                   ? DataManager._pendingNote
-                   : (info.note || "");
-    DataManager._pendingNote = null;
+    
+    var id = DataManager._lastAccessedSavefileId;
+    if (id) {
+        var globalInfo = DataManager.loadGlobalInfo();
+        if (globalInfo && globalInfo[id] && globalInfo[id].note) {
+            info.note = globalInfo[id].note;
+        }
+    }
+    
     return info;
 };
 
-// ─── ПРОМПТ ЗАМЕТКИ ПРИ СОХРАНЕНИИ ───────────────────────────────────
 var _Scene_Save_onSavefileOk = Scene_Save.prototype.onSavefileOk;
 Scene_Save.prototype.onSavefileOk = function() {
     var index = this.savefileId();
-    var existingNote = "";
-    var info = DataManager.loadSavefileInfo(index);
-    if (info && info.note) existingNote = info.note;
+    DataManager._lastAccessedSavefileId = index;
+    
+    var globalInfo = DataManager.loadGlobalInfo();
+    var existingNote = (globalInfo && globalInfo[index] && globalInfo[index].note) ? globalInfo[index].note : "";
+    
     var note = window.prompt(t('notePrompt'), existingNote);
-    if (note === null) { this.activateListWindow(); return; }
+    if (note === null) { 
+        this.activateListWindow(); 
+        return; 
+    }
     DataManager._pendingNote = note.substring(0, 40);
     _Scene_Save_onSavefileOk.call(this);
 };
 
-// ─── ОТОБРАЖЕНИЕ СЛОТОВ ───────────────────────────────────────────────
 Window_SavefileList.prototype.drawGameTitle = function(info, x, y, width) {
     var episode = info.chapter || t('unknown');
-    var note    = info.note    ? "  —  " + info.note : "";
-    var mapId   = (SHOW_MAPID && info.mapId) ? " [" + info.mapId + "]" : "";
+    var note = (info.note && info.note.trim()) ? "  —  " + info.note : "";
+    var mapId = (SHOW_MAPID && info.mapId) ? " [" + info.mapId + "]" : "";
     this.changeTextColor(this.normalColor());
     this.drawText("[" + episode + "]" + note, x, y, width - 70);
     this.changeTextColor(this.textColor(8));
@@ -180,7 +210,6 @@ Window_SavefileList.prototype.drawGameTitle = function(info, x, y, width) {
     this.changeTextColor(this.normalColor());
 };
 
-// ─── ПОПАП МЕНЮ ПРИ ЗАГРУЗКЕ ─────────────────────────────────────────
 var _Scene_Load_create = Scene_Load.prototype.create;
 Scene_Load.prototype.create = function() {
     _Scene_Load_create.call(this);
@@ -215,23 +244,24 @@ Scene_Load.prototype.onSavefileOk = function() {
 };
 
 Scene_Load.prototype.onActionLoad = function() {
+    var id = this.savefileId();
+    DataManager._lastAccessedSavefileId = id;
     this._actionWindow.hide();
     _Scene_Load_onSavefileOk.call(this);
 };
 
 Scene_Load.prototype.onActionEdit = function() {
     var id = this.savefileId();
-    var info = DataManager.loadSavefileInfo(id);
-    var existingNote = (info && info.note) ? info.note : "";
+    var globalInfo = DataManager.loadGlobalInfo();
+    var existingNote = (globalInfo && globalInfo[id] && globalInfo[id].note) ? globalInfo[id].note : "";
+    
     var note = window.prompt(t('notePrompt'), existingNote);
     if (note !== null) {
-        // Обновляем только заметку в globalInfo — файл сейва не трогаем
-        var globalInfo = DataManager.loadGlobalInfo() || [];
-        if (globalInfo[id]) {
-            globalInfo[id].note = note.substring(0, 40);
-            DataManager.saveGlobalInfo(globalInfo);
-            this._listWindow.refresh();
-        }
+        if (!globalInfo) globalInfo = [];
+        if (!globalInfo[id]) globalInfo[id] = {};
+        globalInfo[id].note = note.substring(0, 40);
+        DataManager.saveGlobalInfo(globalInfo);
+        this._listWindow.refresh();
     }
     this._actionWindow.hide();
     this._listWindow.activate();
@@ -278,7 +308,8 @@ Scene_Load.prototype.onActionReport = function() {
     var info = DataManager.loadSavefileInfo(id);
     var mapId   = info && info.mapId   ? info.mapId   : "?";
     var episode = info && info.chapter ? info.chapter : "?";
-    var text = "Slot: " + id + " | mapId: " + mapId + " | Episode: " + episode;
+    var note    = info && info.note    ? info.note    : "";
+    var text = "Slot: " + id + " | mapId: " + mapId + " | Episode: " + episode + " | Note: " + note;
     if (window.nw && nw.Clipboard) {
         nw.Clipboard.get().set(text, 'text');
         window.alert(t('reportCopied') + text);
@@ -294,7 +325,6 @@ Scene_Load.prototype.onActionCancel = function() {
     this._listWindow.activate();
 };
 
-// ─── ПОПАП ОКНО (6 пунктов) ──────────────────────────────────────────
 function Window_SaveAction() { this.initialize.apply(this, arguments); }
 Window_SaveAction.prototype = Object.create(Window_Command.prototype);
 Window_SaveAction.prototype.constructor = Window_SaveAction;
@@ -313,7 +343,6 @@ Window_SaveAction.prototype.makeCommandList = function() {
     this.addCommand(t('cmdCancel'), "cancel");
 };
 
-// ─── НАСТРОЙКИ В ИГРЕ: добавляем переключатель языка в Options ────────
 var _Window_Options_addGeneralOptions = Window_Options.prototype.addGeneralOptions;
 Window_Options.prototype.addGeneralOptions = function() {
     _Window_Options_addGeneralOptions.call(this);
@@ -356,16 +385,13 @@ Window_Options.prototype.cursorLeft = function(wrap) {
 
 Window_Options.prototype.toggleLang = function() {
     LANG = (LANG === 'RU') ? 'EN' : 'RU';
-    // Сохраняем в ConfigManager
     ConfigManager['betterSavesLang'] = LANG;
     ConfigManager.save();
-    // Обновляем эпизоды в globalInfo под новый язык
     BetterSaves.fixGlobalInfo();
     this.redrawItem(this.index());
     SoundManager.playCursor();
 };
 
-// Сохраняем язык в config
 var _ConfigManager_makeData = ConfigManager.makeData;
 ConfigManager.makeData = function() {
     var config = _ConfigManager_makeData.call(this);
