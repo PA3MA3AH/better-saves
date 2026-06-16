@@ -77,7 +77,7 @@ Your save files will not be affected.
 6. Add the following plugin entry before the final `];`:
 
    ```js
-   {"name":"BetterSaves","status":true,"description":"Better saves v1.1","parameters":{"language":"RU","showMapId":"true"}},
+   {"name":"BetterSaves","status":true,"description":"Better saves v1.4","parameters":{"language":"EN","showMapId":"true"}},
    ```
 
 7. Your file should look similar to this:
@@ -89,7 +89,7 @@ Your save files will not be affected.
    [
    {"name":"SomePlugin","status":true,"description":"","parameters":{}},
 
-   {"name":"BetterSaves","status":true,"description":"Better saves v1.1","parameters":{"language":"RU","showMapId":"true"}},
+   {"name":"BetterSaves","status":true,"description":"Better saves v1.4","parameters":{"language":"EN","showMapId":"true"}},
    ];
    ```
 
@@ -105,7 +105,7 @@ Your save files will not be affected.
 {"name":"stbvorbis_stream","status":false,"description":"","parameters":{}},
 {"name":"stbvorbis_stream_asm","status":false,"description":"","parameters":{}},
 
-{"name":"BetterSaves","status":true,"description":"Better saves v1.1","parameters":{"language":"RU","showMapId":"true"}},
+{"name":"BetterSaves","status":true,"description":"Better saves v1.4","parameters":{"language":"EN","showMapId":"true"}},
 
 ];
 ```
