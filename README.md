@@ -24,8 +24,8 @@
 ### Linux
 1. Download the files:
    - [BetterSaves.js](https://github.com/PA3MA3AH/better-saves/raw/main/BetterSaves.js)
-   - [install.bat](https://github.com/PA3MA3AH/better-saves/raw/main/install.sh)
-   - [uninstall.bat](https://github.com/PA3MA3AH/better-saves/raw/main/uninstall.sh)
+   - [install.sh](https://github.com/PA3MA3AH/better-saves/raw/main/install.sh)
+   - [uninstall.sh](https://github.com/PA3MA3AH/better-saves/raw/main/uninstall.sh)
 2. Open a terminal in the folder
 3. Run:
    ```bash
