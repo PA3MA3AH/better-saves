@@ -12,14 +12,20 @@
 ---
 ## Установка
 ### Windows
-1. [Скачай последний релиз](../../releases/latest) и распакуй в любую папку
+1. Скачайте файлы:
+   - [BetterSaves.js](https://github.com/PA3MA3AH/better-saves/raw/main/BetterSaves.js)
+   - [install.bat](https://github.com/PA3MA3AH/better-saves/raw/main/install.bat)
+   - [uninstall.bat](https://github.com/PA3MA3AH/better-saves/raw/main/uninstall.bat)
 2. Нажми правой кнопкой на `install.bat` → **Запуск от имени администратора**
 3. Запускай игру через Steam как обычно ✓
 
 > ⚠️ Права администратора нужны, так как игра обычно установлена в `Program Files`.
 
 ### Linux
-1. [Скачай последний релиз](../../releases/latest) и распакуй
+1. Скачайте файлы:
+   - [BetterSaves.js](https://github.com/PA3MA3AH/better-saves/raw/main/BetterSaves.js)
+   - [install.sh](https://github.com/PA3MA3AH/better-saves/raw/main/install.sh)
+   - [uninstall.sh](https://github.com/PA3MA3AH/better-saves/raw/main/uninstall.sh)
 2. Открой терминал в папке с архивом
 3. Выполни:
    ```bash
