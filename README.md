@@ -92,9 +92,6 @@ Your save files will not be affected.
 ];
 ```
 ---
-## Found a bug?
-In the load menu, select a save → **"Report bug"** — the info will be copied to clipboard.  
-Open an [Issue](../../issues/new) and paste it with a description.
----
+
 ## Credits
 - **PA3MA3AH** — development
