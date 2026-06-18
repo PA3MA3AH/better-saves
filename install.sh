@@ -1,9 +1,9 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 echo "============================================"
-echo "  BetterSaves v1.4"
-echo "  The Coffin of Andy and Leyley"
+echo " BetterSaves v1.7.16"
+echo " The Coffin of Andy and Leyley"
 echo "============================================"
 echo ""
 
@@ -11,55 +11,55 @@ GAME_NAME="The Coffin of Andy and Leyley"
 GAME_PATH=""
 
 SEARCH_PATHS=(
-    "$HOME/.steam/steam/steamapps/common/$GAME_NAME"
-    "$HOME/.local/share/Steam/steamapps/common/$GAME_NAME"
-    "$HOME/.var/app/com.valvesoftware.Steam/.steam/steam/steamapps/common/$GAME_NAME"
-    "$HOME/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/$GAME_NAME"
-    "/usr/share/steam/steamapps/common/$GAME_NAME"
+  "$HOME/.steam/steam/steamapps/common/$GAME_NAME"
+  "$HOME/.local/share/Steam/steamapps/common/$GAME_NAME"
+  "$HOME/.var/app/com.valvesoftware.Steam/.steam/steam/steamapps/common/$GAME_NAME"
+  "$HOME/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/$GAME_NAME"
+  "/usr/share/steam/steamapps/common/$GAME_NAME"
 )
 
 if [ -d "$HOME" ]; then
-    while IFS= read -r -d '' vdf; do
-        while IFS= read -r line; do
-            if [[ "$line" =~ \"path\" ]]; then
-                p=$(echo "$line" | sed 's/.*"\(.*\)".*/\1/' | sed 's|\\\\|/|g')
-                SEARCH_PATHS+=("${p}/steamapps/common/$GAME_NAME")
-            fi
-        done < "$vdf"
-    done < <(find "$HOME" -maxdepth 5 \( -name ".*" -a ! -name ".steam" -a ! -name ".local" -a ! -name ".var" \) -prune -o -name "libraryfolders.vdf" -print0 2>/dev/null)
+  while IFS= read -r -d '' vdf; do
+    while IFS= read -r line; do
+      if [[ "$line" =~ \"path\" ]]; then
+        p=$(echo "$line" | sed 's/.*"\(.*\)".*/\1/' | sed 's|\\\\|/|g')
+        SEARCH_PATHS+=("${p}/steamapps/common/$GAME_NAME")
+      fi
+    done < "$vdf"
+  done < <(find "$HOME" -maxdepth 5 \( -name ".*" -a ! -name ".steam" -a ! -name ".local" -a ! -name ".var" \) -prune -o -name "libraryfolders.vdf" -print0 2>/dev/null)
 fi
 
 for base in /data /mnt /media; do
-    if [ -d "$base" ]; then
-        while IFS= read -r -d '' p; do
-            SEARCH_PATHS+=("$p")
-        done < <(find "$base" -maxdepth 3 -name "$GAME_NAME" -type d -print0 2>/dev/null)
-    fi
+  if [ -d "$base" ]; then
+    while IFS= read -r -d '' p; do
+      SEARCH_PATHS+=("$p")
+    done < <(find "$base" -maxdepth 3 -name "$GAME_NAME" -type d -print0 2>/dev/null)
+  fi
 done
 
 for p in "${SEARCH_PATHS[@]}"; do
-    if [ -f "$p/www/js/plugins.js" ]; then
-        GAME_PATH="$p"
-        break
-    fi
+  if [ -f "$p/www/js/plugins.js" ]; then
+    GAME_PATH="$p"
+    break
+  fi
 done
 
 if [ -z "$GAME_PATH" ]; then
-    echo "[!] Could not find the game automatically."
-    echo ""
-    echo "Please enter the full path to the game folder:"
-    echo "Example: /home/user/.steam/steam/steamapps/common/The Coffin of Andy and Leyley"
-    echo ""
-    read -r -p "Path: " GAME_PATH
+  echo "[!] Could not find the game automatically."
+  echo ""
+  echo "Please enter the full path to the game folder:"
+  echo "Example: /home/user/.steam/steam/steamapps/common/The Coffin of Andy and Leyley"
+  echo ""
+  read -r -p "Path: " GAME_PATH
 fi
 
 GAME_PATH="${GAME_PATH/#\~/$HOME}"
 
 if [ ! -f "$GAME_PATH/www/js/plugins.js" ]; then
-    echo ""
-    echo "[ERROR] Game not found at: $GAME_PATH"
-    echo "Make sure the game is installed and the path is correct."
-    exit 1
+  echo ""
+  echo "[ERROR] Game not found at: $GAME_PATH"
+  echo "Make sure the game is installed and the path is correct."
+  exit 1
 fi
 
 echo "[OK] Game found: $GAME_PATH"
@@ -69,8 +69,8 @@ PLUGINS_JS="$GAME_PATH/www/js/plugins.js"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [ ! -f "$SCRIPT_DIR/BetterSaves.js" ]; then
-    echo "[ERROR] BetterSaves.js not found in $SCRIPT_DIR"
-    exit 1
+  echo "[ERROR] BetterSaves.js not found in $SCRIPT_DIR"
+  exit 1
 fi
 
 echo "[*] Backing up plugins.js..."
@@ -81,56 +81,73 @@ mkdir -p "$GAME_PATH/www/js/plugins/"
 cp "$SCRIPT_DIR/BetterSaves.js" "$GAME_PATH/www/js/plugins/BetterSaves.js"
 
 echo "[*] Registering plugin..."
-
-node -e "
+if PLUGINS_JS_PATH="$PLUGINS_JS" node -e "
 const fs = require('fs');
-const filePath = '$PLUGINS_JS';
-
+const filePath = process.env.PLUGINS_JS_PATH;
 let content = fs.readFileSync(filePath, 'utf8');
 
 if (content.includes('\"BetterSaves\"')) {
-    console.log('[OK] Plugin already registered');
-    process.exit(0);
+  console.log('[OK] Plugin already registered');
+  process.exit(0);
 }
 
 const lastIndex = content.lastIndexOf(']');
 if (lastIndex === -1) {
-    console.error('[ERROR] Could not find valid array structure in plugins.js');
-    process.exit(1);
+  console.error('[ERROR] Could not find valid array structure in plugins.js');
+  process.exit(1);
 }
 
 const newPluginStr = JSON.stringify({
-    name: 'BetterSaves',
-    status: true,
-    description: 'Better saves v1.4',
-    parameters: {
-        language: 'EN',
-        showMapId: 'true'
-    }
+  name: 'BetterSaves',
+  status: true,
+  description: 'Better saves v1.7.16',
+  parameters: {
+    language: 'EN',
+    showMapId: 'lase'
+  }
 }, null, 4);
 
 let before = content.substring(0, lastIndex).trim();
 if (before.endsWith(',')) {
-    before = before.slice(0, -1);
+  before = before.slice(0, -1);
 }
 
 const isArrayEmpty = before.endsWith('[');
 const separator = isArrayEmpty ? '\n' : ',\n';
-
 const output = before + separator + newPluginStr + '\n];\n';
 
 try {
-    fs.writeFileSync(filePath, output, 'utf8');
-    console.log('[OK] Plugin successfully registered');
+  fs.writeFileSync(filePath, output, 'utf8');
+  console.log('[OK] Plugin successfully registered');
 } catch (e) {
-    console.error('[ERROR] Failed to write to plugins.js:', e.message);
-    process.exit(1);
+  console.error('[ERROR] Failed to write to plugins.js:', e.message);
+  process.exit(1);
 }
-"
-
-echo ""
-echo "============================================"
-echo "  Done! Launch the game via Steam."
-echo "  To change language: Options -> Save mod language"
-echo "============================================"
-echo ""
+"; then
+  echo ""
+  echo "============================================"
+  echo " Done! Launch the game via Steam."
+  echo " To change language: Options -> Save mod language"
+  echo "============================================"
+  echo ""
+else
+  echo ""
+  echo "[WARNING] Automatic plugin registration failed."
+  echo ""
+  echo "You can register the plugin manually:"
+  echo ""
+  echo "1. Open this file in any text editor:"
+  echo "   $PLUGINS_JS"
+  echo ""
+  echo "2. Add the following line before the final ']':"
+  echo '   ,{"name":"BetterSaves","status":true,"description":"Better saves v1.7.16","parameters":{"language":"EN","showMapId":"false"}}'
+  echo ""
+  echo "3. Save the file and launch the game via Steam."
+  echo ""
+  echo "The result should look like this:"
+  echo '   {"name":"SomePlugin","status":true,"description":"","parameters":{}},'
+  echo '   {"name":"BetterSaves","status":true,"description":"Better saves v1.7.16","parameters":{"language":"EN","showMapId":"false"}},'
+  echo '   ];'
+  echo ""
+  exit 1
+fi
