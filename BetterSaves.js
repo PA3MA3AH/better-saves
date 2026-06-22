@@ -1,5 +1,5 @@
 /*:
- * @plugindesc v1.7.16 Better Save System
+ * @plugindesc v1.7.22 Better Save System
  * @author PA3MA3AH
  *
  * @param language
@@ -17,12 +17,16 @@
  * @default false
  *
  * @help
- * BetterSaves v1.7.16
+ * BetterSaves v1.7.22
+ * - 50 save slots
  * - Episode label (auto-detected from save data)
  * - Notes per slot (in-game text input, real-time display)
  * - Copy / Delete saves (in-game confirm windows)
  * - Full metadata copy
  * - Language: RU / EN
+ * - COPY MODE visual indicator (yellow highlight + help text)
+ * - Esc in copy/note mode cancels mode without exiting scene
+ * - Esc in confirm window triggers No and closes window
  */
 
 (function() {
@@ -51,7 +55,9 @@ var T = {
         copyOverwrite: "Слот занят. Перезаписать?",
         copyYes:       "Да",
         copyNo:        "Нет",
-        deleteQuestion:"Вы уверены, что хотите удалить слот {0}?"
+        deleteQuestion:"Вы уверены, что хотите удалить слот {0}?",
+        helpLoad:      "Какой файл загрузить?",
+        helpCopyMode:  "РЕЖИМ КОПИРОВАНИЯ"
     },
     EN: {
         ep1:           "Episode 1",
@@ -68,7 +74,9 @@ var T = {
         copyOverwrite: "Slot is occupied. Overwrite?",
         copyYes:       "Yes",
         copyNo:        "No",
-        deleteQuestion:"Are you sure to delete slot {0}?"
+        deleteQuestion:"Are you sure to delete slot {0}?",
+        helpLoad:      "Load which file?",
+        helpCopyMode:  "COPY MODE"
     }
 };
 
@@ -78,11 +86,12 @@ function t(key) {
 
 function detectEpisode(mapId) {
     mapId = parseInt(mapId) || 0;
+    if (mapId === 0)                  return t('unknown');
+    if (mapId >= 1   && mapId <= 2)   return t('ep3a');
     if (mapId >= 3   && mapId <= 18)  return t('ep1');
     if (mapId === 221)                return t('ep4');
     if (mapId === 261)                return t('ep2');
     if (mapId >= 19  && mapId <= 107) return t('ep2');
-    if (mapId >= 1   && mapId <= 2)   return t('ep3a');
     if (mapId >= 108)                 return t('ep3a');
     return t('unknown');
 }
@@ -262,7 +271,11 @@ Window_SavefileList.prototype.drawGameTitle = function(info, x, y, width) {
     var currentSlotId = this._bsCurrentSavefileId;
     var isEditingThisSlot = BetterSaves.noteInputMode && currentSlotId === BetterSaves.noteInputSlotId;
 
-    this.changeTextColor(this.normalColor());
+    if (BetterSaves.copyMode && currentSlotId === BetterSaves.copySourceId) {
+        this.changeTextColor(this.textColor(3));
+    } else {
+        this.changeTextColor(this.normalColor());
+    }
 
     if (isEditingThisSlot) {
         var prefix = "[" + episode + "]" + "  —  ";
@@ -334,11 +347,13 @@ Window_Confirm.prototype.isCommandEnabled = function(index) {
 Window_Confirm.prototype.processOk = function() {
     var symbol = this.currentSymbol();
     if (symbol === 'yes') {
-        if (this._callbackYes) this._callbackYes();
+        var cb = this._callbackYes;
         this.closeWindow();
+        if (cb) cb();
     } else if (symbol === 'no') {
-        if (this._callbackNo) this._callbackNo();
+        var cb = this._callbackNo;
         this.closeWindow();
+        if (cb) cb();
     }
 };
 Window_Confirm.prototype.closeWindow = function() {
@@ -353,8 +368,9 @@ Window_Confirm.prototype.closeWindow = function() {
 Window_Confirm.prototype.update = function() {
     Window_Command.prototype.update.call(this);
     if (Input.isTriggered('cancel')) {
-        if (this._callbackNo) this._callbackNo();
+        var cb = this._callbackNo;
         this.closeWindow();
+        if (cb) cb();
         Input.clear();
         TouchInput.clear();
     }
@@ -385,6 +401,10 @@ BetterSaves.startCopy = function(scene, sourceId) {
         scene._listWindow.refresh();
         scene._listWindow.activate();
     }
+
+    if (scene._helpWindow) {
+        scene._helpWindow.setText(t('helpCopyMode'));
+    }
 };
 
 BetterSaves.cancelCopy = function() {
@@ -398,6 +418,9 @@ BetterSaves.cancelCopy = function() {
         scene._listWindow.refresh();
         scene._listWindow.activate();
     }
+    if (scene && scene._helpWindow) {
+        scene._helpWindow.setText(t('helpLoad'));
+    }
     Input.clear();
     TouchInput.clear();
 };
@@ -407,11 +430,7 @@ BetterSaves.tryCopyToSlot = function(destId) {
     if (BetterSaves._copyPending) return;
 
     var srcId = BetterSaves.copySourceId;
-    if (destId === srcId) {
-        return;
-    }
-
-    BetterSaves._copyPending = true;
+    if (destId === srcId) return;
 
     var globalInfo = DataManager.loadGlobalInfo() || [];
     var occupied = !!globalInfo[destId] && globalInfo[destId].hasOwnProperty('mapId');
@@ -419,34 +438,34 @@ BetterSaves.tryCopyToSlot = function(destId) {
     if (!occupied) {
         BetterSaves.performCopy(srcId, destId);
         BetterSaves.cancelCopy();
-        BetterSaves._copyPending = false;
         return;
-    } else {
-        BetterSaves.copyDestinationId = destId;
-        if (BetterSaves.copyScene && BetterSaves.copyScene._confirmWindow) {
-            BetterSaves.copyScene._confirmWindow.setup(
-                t('copyOverwrite'),
-                function() {
-                    var src = BetterSaves.copySourceId;
-                    var dest = BetterSaves.copyDestinationId;
-                    BetterSaves.performCopy(src, dest);
-                    BetterSaves.cancelCopy();
-                    BetterSaves._copyPending = false;
-                },
-                function() {
-                    BetterSaves.copyDestinationId = 0;
-                    BetterSaves._copyPending = false;
-                    if (BetterSaves.copyScene && BetterSaves.copyScene._listWindow) {
-                        BetterSaves.copyScene._listWindow.refresh();
-                    }
+    }
+
+    BetterSaves._copyPending = true;
+    BetterSaves.copyDestinationId = destId;
+
+    if (BetterSaves.copyScene && BetterSaves.copyScene._confirmWindow) {
+        BetterSaves.copyScene._confirmWindow.setup(
+            t('copyOverwrite'),
+            function() {
+                var src  = BetterSaves.copySourceId;
+                var dest = BetterSaves.copyDestinationId;
+                BetterSaves._copyPending = false;
+                BetterSaves.performCopy(src, dest);
+                BetterSaves.cancelCopy();
+            },
+            function() {
+                BetterSaves.copyDestinationId = 0;
+                BetterSaves._copyPending = false;
+                if (BetterSaves.copyScene && BetterSaves.copyScene._listWindow) {
+                    BetterSaves.copyScene._listWindow.refresh();
                 }
-            );
-            BetterSaves.copyScene._confirmWindow.show();
-            BetterSaves.copyScene._confirmWindow.open();
-            BetterSaves.copyScene._confirmWindow.activate();
-            if (BetterSaves.copyScene._listWindow) BetterSaves.copyScene._listWindow.deactivate();
-        }
-        BetterSaves._copyPending = false;
+            }
+        );
+        BetterSaves.copyScene._confirmWindow.show();
+        BetterSaves.copyScene._confirmWindow.open();
+        BetterSaves.copyScene._confirmWindow.activate();
+        if (BetterSaves.copyScene._listWindow) BetterSaves.copyScene._listWindow.deactivate();
     }
 };
 
@@ -464,9 +483,9 @@ BetterSaves.performCopy = function(srcId, destId) {
                 var chapter = detectEpisode(mapId);
                 var note = data.note || '';
                 globalInfo[destId] = {
-                    mapId: mapId,
-                    chapter: chapter,
-                    note: note,
+                    mapId:     mapId,
+                    chapter:   chapter,
+                    note:      note,
                     timestamp: data.timestamp || Date.now()
                 };
             } catch(e) {
@@ -498,50 +517,65 @@ Scene_Load.prototype.create = function() {
     this.addWindow(this._actionWindow);
 
     this._confirmWindow = new Window_Confirm(0, 0);
-    this._confirmWindow.x = (Graphics.width - this._confirmWindow.windowWidth()) / 2;
+    this._confirmWindow.x = (Graphics.width  - this._confirmWindow.windowWidth())  / 2;
     this._confirmWindow.y = (Graphics.height - this._confirmWindow.windowHeight()) / 2;
     this._confirmWindow.openness = 0;
     this.addWindow(this._confirmWindow);
 };
 
-var _Scene_Load_terminate = Scene_Load.prototype.terminate;
-Scene_Load.prototype.terminate = function() {
+Scene_Load.prototype.helpWindowText = function() {
+    if (BetterSaves.copyMode) {
+        return t('helpCopyMode');
+    } else {
+        return t('helpLoad');
+    }
+};
 
+var _Scene_Load_cancel = Scene_Load.prototype.cancel;
+Scene_Load.prototype.cancel = function() {
     if (BetterSaves.copyMode) {
         BetterSaves.cancelCopy();
+        Input.clear();
+        TouchInput.clear();
+        return;
     }
-
     if (BetterSaves.noteInputMode) {
         BetterSaves.cancelNoteInput();
+        Input.clear();
+        TouchInput.clear();
+        return;
     }
+    _Scene_Load_cancel.call(this);
+};
 
+var _Scene_Load_terminate = Scene_Load.prototype.terminate;
+Scene_Load.prototype.terminate = function() {
+    if (BetterSaves.copyMode)      BetterSaves.cancelCopy();
+    if (BetterSaves.noteInputMode) BetterSaves.cancelNoteInput();
     _Scene_Load_terminate.call(this);
 };
 
 var _Scene_Load_update = Scene_Load.prototype.update;
 Scene_Load.prototype.update = function() {
-    _Scene_Load_update.call(this);
-
     if (this._confirmWindow && this._confirmWindow.active) {
+        _Scene_Load_update.call(this);
         return;
     }
 
-    if (BetterSaves.copyMode) {
+    if (BetterSaves.copyMode || BetterSaves.noteInputMode) {
         if (Input.isTriggered('cancel')) {
-            BetterSaves.cancelCopy();
+            if (BetterSaves.copyMode) {
+                BetterSaves.cancelCopy();
+            } else if (BetterSaves.noteInputMode) {
+                BetterSaves.cancelNoteInput();
+            }
             Input.clear();
             TouchInput.clear();
+            _Scene_Load_update.call(this);
             return;
         }
-        if (this._listWindow) this._listWindow.refresh();
-        return;
     }
-
-    if (BetterSaves.noteInputMode) {
-        Input.clear();
-        if (this._listWindow) this._listWindow.refresh();
-        return;
-    }
+    _Scene_Load_update.call(this);
 };
 
 var _orig_onSavefileOk = Scene_Load.prototype.onSavefileOk;
@@ -558,8 +592,8 @@ Scene_Load.prototype.onSavefileOk = function() {
     if (DataManager.isThisGameFile(id)) {
         this._listWindow.deactivate();
         var rect = this._listWindow.itemRect(this._listWindow.index());
-        var ax = Math.min(rect.x + rect.width / 2, Graphics.width - this._actionWindow.width);
-        var ay = Math.min(Math.max(rect.y, 0), Graphics.height - this._actionWindow.height);
+        var ax = Math.min(rect.x + rect.width / 2, Graphics.width  - this._actionWindow.width);
+        var ay = Math.min(Math.max(rect.y, 0),      Graphics.height - this._actionWindow.height);
         this._actionWindow.x = ax;
         this._actionWindow.y = ay;
         this._actionWindow.show();
@@ -577,9 +611,10 @@ Scene_Load.prototype.onActionCopy = function() {
 };
 
 Scene_Load.prototype.onActionDelete = function() {
-    var id = this.savefileId();
-    this._actionWindow.hide();
+    var id   = this.savefileId();
     var self = this;
+    this._actionWindow.hide();
+
     if (this._confirmWindow) {
         this._confirmWindow.setup(
             t('deleteQuestion').replace('{0}', id),
@@ -589,11 +624,13 @@ Scene_Load.prototype.onActionDelete = function() {
                 globalInfo[id] = null;
                 DataManager.saveGlobalInfo(globalInfo);
                 SoundManager.playLoad();
-                if (self._listWindow) self._listWindow.refresh();
-                self._listWindow.activate();
+                if (self._listWindow) {
+                    self._listWindow.refresh();
+                    self._listWindow.activate();
+                }
             },
             function() {
-                self._listWindow.activate();
+                if (self._listWindow) self._listWindow.activate();
             }
         );
         this._confirmWindow.show();
@@ -625,7 +662,7 @@ Scene_Load.prototype.onActionEdit = function() {
 
 Scene_Load.prototype.onActionCancel = function() {
     this._actionWindow.hide();
-    this._listWindow.activate();
+    if (this._listWindow) this._listWindow.activate();
 };
 
 function Window_SaveAction() { this.initialize.apply(this, arguments); }
@@ -654,20 +691,14 @@ Window_Options.prototype.addGeneralOptions = function() {
 var _Window_Options_statusText = Window_Options.prototype.statusText;
 Window_Options.prototype.statusText = function(index) {
     var symbol = this.commandSymbol(index);
-    if (symbol === 'betterSavesLang') {
-        return LANG;
-    }
+    if (symbol === 'betterSavesLang') return LANG;
     return _Window_Options_statusText.call(this, index);
 };
 
 var _Window_Options_processOk = Window_Options.prototype.processOk;
 Window_Options.prototype.processOk = function() {
-    var index = this.index();
-    var symbol = this.commandSymbol(index);
-    if (symbol === 'betterSavesLang') {
-        this.toggleLang();
-        return;
-    }
+    var symbol = this.commandSymbol(this.index());
+    if (symbol === 'betterSavesLang') { this.toggleLang(); return; }
     _Window_Options_processOk.call(this);
 };
 
@@ -704,12 +735,12 @@ ConfigManager.makeData = function() {
 var _ConfigManager_applyData = ConfigManager.applyData;
 ConfigManager.applyData = function(config) {
     _ConfigManager_applyData.call(this, config);
-    if (config.betterSavesLang) {
-        LANG = config.betterSavesLang;
-    }
+    if (config.betterSavesLang) LANG = config.betterSavesLang;
 };
 
-document.addEventListener('keydown', function(e) {
+BetterSaves._keydownBound = false;
+
+BetterSaves._onKeydown = function(e) {
     if (!BetterSaves.noteInputMode) return;
 
     e.preventDefault();
@@ -728,20 +759,19 @@ document.addEventListener('keydown', function(e) {
 
     if (e.key === "Backspace") {
         BetterSaves.noteInputText = BetterSaves.noteInputText.slice(0, -1);
-        var scene = BetterSaves.noteInputScene;
-        if (scene && scene._listWindow) {
-            scene._listWindow.refresh();
-        }
+        BetterSaves.refreshNoteInput();
         return;
     }
 
     if (e.key.length === 1 && BetterSaves.noteInputText.length < NOTE_MAX_LEN) {
         BetterSaves.noteInputText += e.key;
-        var scene = BetterSaves.noteInputScene;
-        if (scene && scene._listWindow) {
-            scene._listWindow.refresh();
-        }
+        BetterSaves.refreshNoteInput();
     }
-}, true);
+};
+
+if (!BetterSaves._keydownBound) {
+    document.addEventListener('keydown', BetterSaves._onKeydown, true);
+    BetterSaves._keydownBound = true;
+}
 
 })();
